@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Git, Actually — A Handwritten Course</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Patrick+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f7f2e6;
+  --paper-2:#f2ecdc;
+  --rule-blue:#b9cfe0;
+  --margin-red:#e8a0a0;
+  --ink:#2c3e50;
+  --ink-blue:#25446e;
+  --ink-red:#af3428;
+  --ink-green:#2f6b4f;
+  --hi-yellow:#fff1a8;
+  --hi-green:#c7e8b5;
+  --hi-pink:#ffd3dc;
+  --hi-blue:#c9e4f6;
+  --sticky-orange:#ffc98b;
+  --pencil:#5a5a52;
+  --font-display:'Kalam', cursive;
+  --font-body:'Patrick Hand', cursive;
+  --font-annotate:'Caveat', cursive;
+  --w:1280px;
+  --h:720px;
+  --margin-w:128px;
+  --margin-line:78px;
+}
+*{box-sizing:border-box;}
+html,body{
+  margin:0; padding:0; width:100%; height:100%;
+  background:#1c1c1c;
+  overflow:hidden;
+  font-family:var(--font-body);
+}
+#stage-wrap{
+  position:fixed; inset:0;
+  display:flex; align-items:center; justify-content:center;
+}
+#stage{
+  position:relative;
+  width:var(--w); height:var(--h);
+  transform-origin:center center;
+  box-shadow:0 20px 60px rgba(0,0,0,0.55);
+}
+.slide{
+  position:absolute; inset:0;
+  width:100%; height:100%;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px, transparent 37px,
+      var(--rule-blue) 37px, var(--rule-blue) 39px
+    ),
+    radial-gradient(ellipse at 15% 8%, rgba(255,255,255,0.5), transparent 45%),
+    var(--paper);
+  background-position: 0 92px, 0 0, 0 0;
+  border-radius:4px;
+  display:none;
+  padding:56px 70px 50px var(--margin-w);
+  color:var(--ink);
+}
+.slide.active{ display:block; }
+/* spiral binder margin */
+.slide::before{
+  content:"";
+  position:absolute; left:var(--margin-line); top:0; bottom:0; width:2px;
+  background:var(--margin-red);
+  opacity:0.55;
+}
+.slide::after{
+  content:"";
+  position:absolute; left:16px; top:0; bottom:0; width:52px;
+  background-image: radial-gradient(circle, #d8d2bd 0 5px, transparent 6px);
+  background-size:52px 46px;
+  background-position: 0 30px;
+  background-repeat: repeat-y;
+  opacity:0.9;
+  filter: drop-shadow(1px 1px 0px rgba(0,0,0,0.08));
+}
+/* chrome: eyebrow + page counter */
+.chrome-top{
+  position:absolute; top:22px; left:var(--margin-w); right:60px;
+  display:flex; justify-content:space-between; align-items:baseline;
+  font-family:var(--font-annotate); color:var(--pencil); font-size:20px;
+}
+.chrome-top .eyebrow{ letter-spacing:0.5px; }
+.chrome-bottom{
+  position:absolute; bottom:14px; left:var(--margin-w); right:60px;
+  display:flex; justify-content:space-between; align-items:center;
+  font-family:var(--font-annotate); color:var(--pencil); font-size:19px;
+}
+.progress-track{ flex:1; height:6px; margin:0 16px; background:rgba(0,0,0,0.08); border-radius:4px; overflow:hidden; }
+.progress-fill{ height:100%; background:var(--ink-blue); opacity:0.5; border-radius:4px; transition:width .35s ease; }
+.content-area{
+  position:absolute; top:64px; bottom:56px; left:var(--margin-w); right:60px;
+  overflow:hidden;
+}
+.content-area svg{ width:100%; height:auto; display:block; }
+h1.slide-title{
+  font-family:var(--font-display); font-weight:700;
+  font-size:52px; color:var(--ink-blue); margin:0 0 6px 0;
+  line-height:1.05;
+}
+.underline-scribble{ display:block; width:210px; height:16px; margin-top:2px; }
+p.subtitle{ font-size:24px; color:var(--pencil); margin:6px 0 0 0; font-family:var(--font-annotate); }
+.svg-label{ font-family:var(--font-annotate); }
+.kicker{ font-family:var(--font-annotate); font-size:19px; color:var(--ink-red); }
+
+/* sticky note / highlight boxes */
+.sticky{
+  background:var(--sticky-orange);
+  padding:14px 18px; border-radius:2px 10px 3px 9px;
+  box-shadow:2px 4px 8px rgba(0,0,0,0.18);
+  font-family:var(--font-annotate); font-size:22px; color:#43331a;
+  display:inline-block; transform:rotate(-1.2deg);
+}
+.hi{ padding:1px 6px; border-radius:3px; }
+.hi-y{ background:var(--hi-yellow); }
+.hi-g{ background:var(--hi-green); }
+.hi-p{ background:var(--hi-pink); }
+.hi-b{ background:var(--hi-blue); }
+
+/* ---- reusable layout classes (so mobile media queries can target them) ---- */
+.grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:18px 30px; margin-top:26px; }
+.item-block{ border-left:4px solid var(--ink-blue); padding:6px 16px; border-radius:4px; }
+.item-h{ font-family:var(--font-display); font-weight:700; font-size:22px; color:var(--ink-blue); }
+.item-d{ font-size:19px; margin-top:2px; }
+.diagram-title{ font-size:44px; }
+.diagram-intro{ font-size:19px; color:var(--pencil); max-width:900px; margin:8px 0 4px 0; }
+.diagram-svg-wrap{ margin-top:6px; }
+.diagram-take{ position:absolute; bottom:0; right:60px; max-width:520px; }
+.compare-grid{ display:grid; grid-template-columns:1fr 1fr; gap:30px; margin-top:24px; }
+.compare-col{ padding:20px 24px; box-shadow:3px 5px 10px rgba(0,0,0,0.15); }
+.compare-col.l{ background:var(--hi-blue); border-radius:6px 18px 6px 18px; transform:rotate(-0.8deg); }
+.compare-col.r{ background:var(--hi-pink); border-radius:18px 6px 18px 6px; transform:rotate(0.8deg); }
+.compare-h{ font-family:var(--font-display); font-weight:700; font-size:30px; }
+.compare-h.l{ color:var(--ink-blue); } .compare-h.r{ color:var(--ink-red); }
+.compare-sub{ font-family:var(--font-annotate); font-size:18px; color:var(--pencil); margin-bottom:10px; }
+.compare-pt{ font-size:19px; padding:3px 0; }
+.verdict-wrap{ margin-top:22px; }
+.cmd-intro{ font-size:19px; color:var(--pencil); max-width:900px; margin:8px 0 16px 0; }
+.cmd-box{ background:#2b2b26; border-radius:10px; padding:18px 22px; box-shadow:4px 6px 0 rgba(0,0,0,0.2); }
+.cmd-row{ display:flex; gap:22px; padding:7px 0; border-bottom:1px dashed rgba(255,255,255,0.15); align-items:baseline; flex-wrap:wrap; }
+.cmd-code{ font-family:'Courier New',monospace; font-size:18px; color:#a8e6a3; white-space:nowrap; }
+.cmd-desc{ font-family:var(--font-annotate); font-size:18px; color:#f0e9d2; }
+.tip-wrap{ margin-top:20px; }
+.toc-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:22px 30px; margin-top:34px; }
+.toc-col{ padding:14px 16px; border-radius:6px 14px 6px 14px; box-shadow:2px 3px 6px rgba(0,0,0,0.12); }
+.toc-head{ font-family:var(--font-display); font-weight:700; font-size:19px; color:var(--ink-blue); margin-bottom:6px; }
+.toc-item{ font-size:16px; padding:2px 0; }
+.divider-wrap{ display:flex; align-items:center; height:100%; gap:50px; }
+.divider-icon{ width:170px; height:170px; flex:none; }
+.divider-mod{ font-family:var(--font-annotate); font-size:26px; color:var(--pencil); }
+.end-wrap{ display:flex; gap:50px; align-items:flex-start; height:100%; }
+.end-col{ flex:1; }
+.recap-item{ font-size:20px; padding:4px 0; }
+.cheat-head{ font-family:var(--font-display); font-size:22px; color:var(--ink-blue); margin-bottom:8px; }
+.cheat-row{ display:flex; justify-content:space-between; gap:10px; padding:4px 0; border-bottom:1px dashed rgba(255,255,255,0.15); }
+.cheat-code{ font-family:'Courier New',monospace; font-size:15px; color:#a8e6a3; }
+.cheat-desc{ font-family:var(--font-annotate); font-size:15px; color:#f0e9d2; }
+.end-icon{ width:110px; flex:none; }
+.title-wrap{ display:flex; flex-direction:column; justify-content:center; height:100%; padding-top:20px; }
+.title-kicker{ font-family:var(--font-annotate); font-size:24px; color:var(--ink-red); margin-bottom:10px; }
+.title-big{ font-size:72px; }
+.title-sub{ max-width:720px; font-size:27px; margin-top:26px; }
+.title-foot{ margin-top:60px; }
+
+/* nav buttons */
+.nav-btn{
+  position:fixed; top:50%; transform:translateY(-50%);
+  width:52px; height:52px; border-radius:50%;
+  background:rgba(255,255,255,0.85); border:2px solid var(--ink-blue);
+  color:var(--ink-blue); font-size:26px; font-family:var(--font-display);
+  cursor:pointer; z-index:50; display:flex; align-items:center; justify-content:center;
+  transition:transform .15s ease, background .15s ease;
+  user-select:none;
+}
+.nav-btn:hover{ background:#fff; transform:translateY(-50%) scale(1.08); }
+#prevBtn{ left:18px; }
+#nextBtn{ right:18px; }
+.click-zone{ position:fixed; top:0; bottom:0; width:6%; z-index:10; cursor:pointer; }
+#clickLeft{ left:0; } #clickRight{ right:0; }
+
+#pageJump{
+  position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+  font-family:var(--font-annotate); color:#cbb; background:rgba(255,255,255,0.08);
+  padding:6px 14px; border-radius:20px; font-size:15px; z-index:50; letter-spacing:0.3px;
+}
+
+/* ======================================================================
+   MOBILE MODE — applied via JS (body.mobile-mode) below ~700px viewports.
+   Switches from "shrink a fixed 1280x720 canvas" to natural reflow with
+   per-slide vertical scrolling, single-column grids, and fluid type.
+   ====================================================================== */
+body.mobile-mode{ overflow:hidden; }
+body.mobile-mode #stage-wrap{
+  align-items:flex-start; justify-content:stretch;
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+}
+body.mobile-mode #stage{
+  width:100%; height:auto; min-height:100%;
+  box-shadow:none;
+}
+body.mobile-mode .slide{
+  position:relative; width:100%; height:auto; min-height:100vh;
+  padding:34px 20px 90px 46px;
+  border-radius:0;
+}
+body.mobile-mode .slide::before{ left:34px; }
+body.mobile-mode .slide::after{
+  left:10px; width:24px; background-size:24px 32px; background-position:0 24px;
+}
+body.mobile-mode .chrome-top{
+  position:relative; left:0; right:0; top:0; margin-bottom:14px;
+  font-size:14px;
+}
+body.mobile-mode .content-area{
+  position:relative; top:auto; bottom:auto; left:0; right:0;
+  overflow:visible; margin-top:6px;
+}
+body.mobile-mode .chrome-bottom{
+  position:fixed; left:0; right:0; bottom:0; top:auto;
+  background:rgba(22,20,16,0.88); padding:9px 16px; border-radius:0;
+  color:#f0e9d2; font-size:14px; z-index:40;
+}
+body.mobile-mode .progress-track{ background:rgba(255,255,255,0.18); }
+
+/* fluid type + collapsed layout, mobile */
+body.mobile-mode h1.slide-title{ font-size:clamp(28px,7.5vw,40px) !important; }
+body.mobile-mode .underline-scribble{ width:130px; height:12px; }
+body.mobile-mode p.subtitle,
+body.mobile-mode .title-sub{ font-size:clamp(15px,4.3vw,19px) !important; }
+body.mobile-mode .title-kicker,
+body.mobile-mode .kicker{ font-size:clamp(13px,3.6vw,17px) !important; }
+body.mobile-mode .title-wrap{ padding-top:0; }
+body.mobile-mode .title-big{ font-size:clamp(34px,10vw,52px) !important; }
+body.mobile-mode .sticky{ font-size:clamp(14px,3.8vw,17px) !important; padding:10px 14px !important; }
+
+body.mobile-mode .grid-2,
+body.mobile-mode .compare-grid,
+body.mobile-mode .toc-grid{ grid-template-columns:1fr !important; margin-top:16px !important; gap:12px !important; }
+body.mobile-mode .item-h{ font-size:18px !important; }
+body.mobile-mode .item-d,
+body.mobile-mode .compare-pt{ font-size:16px !important; }
+body.mobile-mode .compare-h{ font-size:22px !important; }
+body.mobile-mode .compare-sub{ font-size:15px !important; }
+body.mobile-mode .diagram-title{ font-size:clamp(26px,7vw,34px) !important; }
+body.mobile-mode .diagram-intro,
+body.mobile-mode .cmd-intro{ font-size:15px !important; }
+body.mobile-mode .diagram-take{
+  position:relative !important; bottom:auto !important; right:auto !important;
+  max-width:100% !important; margin-top:16px; display:block;
+}
+body.mobile-mode .cmd-box{ padding:12px 14px !important; }
+body.mobile-mode .cmd-row{ flex-direction:column; gap:2px !important; padding:9px 0 !important; }
+body.mobile-mode .cmd-code{ font-size:15px !important; white-space:normal !important; word-break:break-word; }
+body.mobile-mode .cmd-desc{ font-size:14px !important; }
+body.mobile-mode .toc-head{ font-size:17px !important; }
+body.mobile-mode .toc-item{ font-size:14px !important; }
+body.mobile-mode .divider-wrap{ flex-direction:column; text-align:center; gap:18px; }
+body.mobile-mode .divider-icon{ width:90px; height:90px; }
+body.mobile-mode .divider-mod{ font-size:18px !important; }
+body.mobile-mode .end-wrap{ flex-direction:column; gap:24px; }
+body.mobile-mode .end-icon{ width:60px; align-self:center; }
+body.mobile-mode .recap-item{ font-size:16px !important; }
+body.mobile-mode .cheat-code,
+body.mobile-mode .cheat-desc{ font-size:13px !important; }
+
+/* nav: reposition for thumbs, hide desktop-only hints & edge click zones */
+body.mobile-mode .click-zone{ display:none; }
+body.mobile-mode #pageJump{ display:none; }
+body.mobile-mode .nav-btn{
+  top:auto; bottom:64px; transform:none;
+  width:46px; height:46px; font-size:22px;
+  background:rgba(255,255,255,0.92);
+}
+body.mobile-mode #prevBtn{ left:14px; }
+body.mobile-mode #nextBtn{ right:14px; }
+</style>
+</head>
+<body>
+<div id="stage-wrap">
+  <div id="stage"></div>
+</div>
+<div class="click-zone" id="clickLeft"></div>
+<div class="click-zone" id="clickRight"></div>
+<button class="nav-btn" id="prevBtn" aria-label="Previous slide">‹</button>
+<button class="nav-btn" id="nextBtn" aria-label="Next slide">›</button>
+<div id="pageJump">← → to navigate · f for fullscreen</div>
+
+<script>
+/* ============================= SHARED SVG BITS ============================= */
+const ARROW_DEFS = `<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+  </marker>
+</defs>`;
+
+function box(x,y,w,h,fill,stroke,rot){
+  rot = rot||0;
+  return `<g transform="rotate(${rot} ${x+w/2} ${y+h/2})">
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="9" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>
+    <rect x="${x+2}" y="${y+2}" width="${w-4}" height="${h-4}" rx="7" fill="none" stroke="${stroke}" stroke-width="1" opacity="0.35"/>
+  </g>`;
+}
+function lbl(x,y,text,opts){
+  opts = opts||{};
+  const size=opts.size||22, color=opts.color||'var(--ink)', weight=opts.bold?'700':'400', anchor=opts.anchor||'middle', family=opts.display?'var(--font-display)':'var(--font-annotate)';
+  return `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="${family}" font-weight="${weight}" font-size="${size}" fill="${color}">${text}</text>`;
+}
+function curve(x1,y1,x2,y2,color,dash,cy){
+  cy = cy!==undefined?cy:(y1+y2)/2 - 26;
+  const cx=(x1+x2)/2;
+  return `<path d="M${x1},${y1} Q${cx},${cy} ${x2},${y2}" fill="none" stroke="${color}" stroke-width="2.5" ${dash?'stroke-dasharray="6,7"':''} marker-end="url(#arrow)" style="color:${color}"/>`;
+}
+function straight(x1,y1,x2,y2,color,dash){
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="2.5" ${dash?'stroke-dasharray="6,7"':''} marker-end="url(#arrow)" style="color:${color}"/>`;
+}
+function dot(x,y,r,fill,stroke){ return `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${stroke||'var(--ink-blue)'}" stroke-width="2.5"/>`; }
+
+/* ============================= DIAGRAMS ============================= */
+const D = {};
+
+D.vcsChaos = `<svg viewBox="0 0 1000 380" xmlns="http://www.w3.org/2000/svg">${ARROW_DEFS}
+  ${lbl(230,34,'Without version control',{size:24,color:'var(--ink-red)',bold:true})}
+  ${box(40,60,150,60,'var(--hi-pink)','var(--ink-red)',-4)}${lbl(115,96,'final.docx',{size:17})}
+  ${box(160,140,180,60,'var(--hi-pink)','var(--ink-red)',3)}${lbl(250,176,'final_v2.docx',{size:17})}
+  ${box(30,210,210,60,'var(--hi-pink)','var(--ink-red)',-2)}${lbl(135,246,'final_v2_REAL.docx',{size:16})}
+  ${box(190,280,230,60,'var(--hi-pink)','var(--ink-red)',4)}${lbl(305,316,'final_USE_THIS_ONE.docx',{size:14})}
+  ${lbl(700,34,'With Git',{size:24,color:'var(--ink-green)',bold:true})}
+  ${dot(650,340,10,'var(--ink-green)')}${dot(720,300,10,'var(--ink-green)')}${dot(790,260,10,'var(--ink-green)')}${dot(860,220,10,'var(--ink-green)')}${dot(930,180,10,'var(--ink-green)')}
+  <path d="M650,340 L720,300 L790,260 L860,220 L930,180" fill="none" stroke="var(--ink-green)" stroke-width="3"/>
+  ${lbl(650,368,'v1',{size:15})}${lbl(930,150,'latest',{size:15})}
+  ${lbl(790,90,'one file. every version. always',{size:18,color:'var(--pencil)'})}
+</svg>`;
+
+D.threeTrees = `<svg viewBox="0 0 1000 340" xmlns="http://www.w3.org/2000/svg">${ARROW_DEFS}
+  ${box(20,90,270,150,'var(--hi-blue)','var(--ink-blue)',-1)}
+  ${lbl(155,140,'Working Directory',{size:22,bold:true,display:true})}
+  ${lbl(155,175,'your actual files',{size:18})}
+  ${lbl(155,205,'edit freely here',{size:18,color:'var(--ink-red)'})}
+  ${box(365,90,270,150,'var(--hi-yellow)','var(--ink-blue)',1)}
+  ${lbl(500,140,'Staging Area',{size:22,bold:true,display:true})}
+  ${lbl(500,175,'the "index"',{size:18})}
+  ${lbl(500,205,'what will be committed',{size:17})}
+  ${box(710,90,270,150,'var(--hi-green)','var(--ink-blue)',-1)}
+  ${lbl(845,140,'Repository',{size:22,bold:true,display:true})}
+  ${lbl(845,175,'.git history',{size:18})}
+  ${lbl(845,205,'permanent snapshots',{size:16})}
+  ${curve(290,165,365,165,'var(--ink-blue)')}
+  ${lbl(327,130,'git add',{size:19,color:'var(--ink-blue)',bold:true})}
+  ${curve(635,165,710,165,'var(--ink-blue)')}
+  ${lbl(672,130,'git commit',{size:19,color:'var(--ink-blue)',bold:true})}
+  ${lbl(500,300,'restore / checkout can move files backward too',{size:17,color:'var(--pencil)'})}
+</svg>`;
+
+D.commitAnatomy = `<svg viewBox="0 0 1000 320" xmlns="http://www.w3.org/2000/svg">${ARROW_DEFS}
+  ${box(60,60,260,200,'var(--paper-2)','var(--ink)', -1)}
+  ${lbl(190,45,'previous commit',{size:16,color:'var(--pencil)'})}
+  ${lbl(190,100,'a3f9c2e',{size:24,bold:true,color:'var(--ink-red)',display:true})}
+  ${lbl(190,140,'"add login form"',{size:18})}
+  ${box(430,40,300,240,'var(--hi-yellow)','var(--ink-blue)',0)}
+  ${lbl(580,25,'this commit',{size:16,color:'var(--pencil)'})}
+  ${lbl(580,85,'d81be44',{size:26,bold:true,color:'var(--ink-red)',display:true})}
+  ${lbl(580,120,'author: Priya',{size:18})}
+  ${lbl(580,150,'date: Jul 6',{size:18})}
+  ${lbl(580,180,'"fix navbar bug"',{size:19,bold:true})}
+  ${lbl(580,215,'parent -> a3f9c2e',{size:16,color:'var(--ink-blue)'})}
+  ${straight(320,140,430,140,'var(--ink-blue)')}
+  ${box(800,80,160,140,'var(--hi-pink)','var(--ink)',2)}
+  ${lbl(880,65,'a snapshot,',{size:16,color:'var(--pencil)'})}
+  ${lbl(880,140,'not a diff!',{size:22,bold:true,color:'var(--ink-red)',display:true})}
+  ${lbl(880,175,'full picture',{size:16})}
+</svg>`;
+
+D.logGraph = `<svg viewBox="0 0 1000 300" xmlns="http://www.w3.org/2000/svg">${ARROW_DEFS}
+  <path d="M100,230 L300,230 L300,230 L460,230" fill="none" stroke="var(--ink-blue)" stroke-width="3"/>
+  <path d="M300,230 C360,230 360,120 420,120 L600,120" fill="none" stroke="var(--ink-green)" stroke-width="3"/>
+  <path d="M600,120 C680,120 680,230 760,230" fill="none" stroke="var(--ink-green)" stroke-width="3"/>
+  <path d="M760,230 L900,230" fill="none" stroke="var(--ink-blue)" stroke-width="3"/>
+  ${dot(100,230,11,'var(--hi-blue)')}${dot(300,230,11,'var(--hi-blue)')}
+  ${dot(420,120,11,'var(--hi-green)')}${dot(600,120,11,'var(--hi-green)')}
+  ${dot(760,230,11,'var(--hi-blue)')}${dot(900,230,11,'var(--hi-blue)')}
+  ${lbl(100,265,'c1',{size:16})}${lbl(300,265,'c2',{size:16})}${lbl(760,265,'merge',{size:16,color:'var(--ink-red)'})}${lbl(900,265,'HEAD',{size:16,bold:true,color:'var(--ink-red)'})}
+  ${lbl(420,90,'feature',{size:17,color:'var(--ink-green)'})}${lbl(600,90,'commits',{size:17,color:'var(--ink-green)'})}
+  ${lbl(300,35,'git log --oneline --graph shows this exact shape',{size:19,color:'var(--pencil)'})}
+</svg>`;
+
+D.resetModes = `<svg viewBox="0 0 1000 340" xmlns="http://www.w3.org/2000/svg">${ARROW_DEFS}
+  ${box(40,120,250,120,'var(--hi-blue)','var(--ink)', -1)}${lbl(165,160,'Working Dir',{size:19,bold:true})}${lbl(165,190,'your files',{size:16})}
+  ${box(370,120,250,120,'var(--hi-yellow)','var(--ink)',1)}${lbl(495,160,'Staging',{size:19,bold:true})}${lbl(495,190,'the index',{size:16})}
+  ${box(700,120,260,120,'var(--hi-green)','var(--ink)',-1)}${lbl(830,160,'Repo',{size:19,bold:true})}${lbl(830,190,'commit history',{size:16})}
+  <path d="M830,250 C830,300 495,300 495,250" fill="none" stroke="var(--ink-red)" stroke-width="2.5" stroke-dasharray="6,7" marker-end="url(#arrow)" style="color:var(--ink-red)"/>
+  ${lbl(662,308,'--soft: moves HEAD only',{size:16,color:'var(--ink-red)'})}
+  <path d="M830,250 C830,60 165,60 165,120" fill="none" stroke="var(--ink-blue)" stroke-width="2.5" stroke-dasharray="6,7" marker-end="url(#arrow)" style="color:var(--ink-blue)"/>
+  ${lbl(500,45,'--hard: rewrites files too (careful!)',{size:17,color:'var(--ink-blue)',bold:true})}
+  ${lbl(830,290,'--mixed (default): unstages, keeps files',{size:15,color:'var(--pencil)'})}
+</svg>`;
+
+D.branchPointer = `<svg viewBox="0 0 1000 260" xmlns="http://www.w3.org/2000/svg">${ARROW_DEFS}
+  <line x1="80" y1="160" x2="880" y2="160" stroke="var(--ink)" stroke-width="3"/>
+  ${dot(150,160,12,'var(--hi-blue)')}${dot(360,160,12,'var(--hi-blue)')}${dot(570,160,12,'var(--hi-blue)')}${dot(780,160,13,'var(--hi-yellow)')}
+  ${lbl(150,205,'c1',{size:16})}${lbl(360,205,'c2',{size:16})}${lbl(570,205,'c3',{size:16})}${lbl(780,205,'c4',{size:16})}
+  <path d="M780,60 L780,140" stroke="var(--ink-red)" stroke-width="2.5" marker-end="url(#arrow)" style="color:var(--ink-red)"/>
+  ${lbl(780,45,'main',{size:22,bold:true,color:'var(--ink-red)',display:true})}
+  <path d="M900,110 L790,145" stroke="var(--ink-blue)" stroke-width="2.5" marker-end="url(#arrow)" style="color:var(--ink-blue)"/>
+  ${lbl(915,95,'HEAD',{size:18,color:'var(--ink-blue)',anchor:'start'})}
+  ${lbl(480,255,'a branch is just a movable sticky note on a commit',{size:19,color:'var(--pencil)'})}
+</svg>`;
+
+D.branchTree = `<svg viewBox="0 0 1000 320" xmlns="http://www.w3.org/2000/svg">${ARROW_DEFS}
+  <line x1="60" y1="230" x2="920" y2="230" stroke="var(--ink)" stroke-width="3"/>
+  ${dot(120,230,11,'var(--hi-blue)')}${dot(320,230,11,'var(--hi-blue)')}${dot(520,230,11,'var(--hi-blue)')}${dot(760,230,11,'var(--hi-blue)')}
+  <path d="M320,230 C400,230 400,110 480,110 L680,110" stroke="var(--ink-green)" stroke-width="3" fill="none"/>
+  ${dot(480,110,11,'var(--hi-green)')}${dot(600,110,11,'var(--hi-green)')}${dot(680,110,11,'var(--hi-green)')}
+  ${lbl(920,255,'main',{size:19,bold:true,color:'var(--ink-blue)'})}
+  ${lbl(680,80,'feature/login',{size:19,bold:true,color:'var(--ink-green)'})}
+  ${lbl(320,270,'branch point',{size:16,color:'var(--pencil)'})}
+</svg>`;
+
+D.mergeFF = `<svg viewBox="0 0 1000 340" xmlns="http://www.w3.org/2000/svg">${ARROW_DEFS}
+  ${lbl(230,30,'Fast-forward',{size:22,bold:true,color:'var(--ink-green)',display:true})}
+  <line x1="60" y1="140" x2="420" y2="140" stroke="var(--ink)" stroke-width="3"/>
+  ${dot(100,140,10,'var(--hi-blue)')}${dot(240,140,10,'var(--hi-green)')}${dot(380,140,10,'var(--hi-green)')}
+  ${lbl(100,175,'main',{size:15,color:'var(--pencil)'})}
+  ${lbl(380,110,'main just slides forward',{size:15,color:'var(--pencil)'})}
+  ${lbl(770,30,'3-way merge',{size:22,bold:true,color:'var(--ink-red)',display:true})}
+  <line x1="620" y1="260" x2="960" y2="260" stroke="var(--ink)" stroke-width="3"/>
+  ${dot(660,260,10,'var(--hi-blue)')}${dot(940,260,10,'var(--hi-blue)')}
+  <path d="M660,260 C700,150 780,150 820,150" stroke="var(--ink-green)" stroke-width="3" fill="none"/>
+  ${dot(820,150,10,'var(--hi-green)')}
+  <path d="M820,150 C860,150 900,220 940,260" stroke="var(--ink-red)" stroke-width="3" fill="none"/>
+  ${dot(940,260,12,'var(--hi-pink)','var(--ink-red)')}
+  ${lbl(940,300,'new merge commit',{size:15,color:'var(--ink-red)'})}
+</svg>`;
+
+D.rebase = `<svg viewBox="0 0 1000 340" xmlns="http://www.w3.org/2000/svg">${ARROW_DEFS}
+  ${lbl(120,35,'before',{size:20,color:'var(--pencil)'})}
+  <line x1="60" y1="110" x2="500" y2="110" stroke="var(--ink)" stroke-width="3"/>
+  ${dot(100,110,10,'var(--hi-blue)')}${dot(250,110,10,'var(--hi-blue)')}${dot(430,110,10,'var(--hi-blue)')}
+  <path d="M100,110 C140,180 180,180 220,180" stroke="var(--ink-green)" stroke-width="3" fill="none"/>
+  ${dot(220,180,10,'var(--hi-green)')}${dot(340,180,10,'var(--hi-green)')}
+  ${lbl(430,80,'main (moved on)',{size:15,color:'var(--pencil)'})}
+  ${lbl(340,215,'feature',{size:15,color:'var(--ink-green)'})}
+  ${lbl(120,255,'after: git rebase main',{size:20,color:'var(--pencil)'})}
+  <line x1="60" y1="300" x2="900" y2="300" stroke="var(--ink)" stroke-width="3"/>
+  ${dot(100,300,10,'var(--hi-blue)')}${dot(250,300,10,'var(--hi-blue)')}${dot(430,300,10,'var(--hi-blue)')}${dot(600,300,10,'var(--hi-green)')}${dot(750,300,10,'var(--hi-green)')}
+  ${lbl(680,275,'feature commits replayed on top — straight line',{size:16,color:'var(--ink-green)'})}
+</svg>`;
+
+D.remoteConcept = `<svg viewBox="0 0 1000 300" xmlns="http://www.w3.org/2000/svg">${ARROW_DEFS}
+  ${box(60,90,300,140,'var(--hi-blue)','var(--ink-blue)',-1)}
+  ${lbl(210,150,'Local Repo',{size:24,bold:true,display:true})}
+  ${lbl(210,185,'on your laptop',{size:17})}
+  ${box(640,90,300,140,'var(--hi-green)','var(--ink-blue)',1)}
+  ${lbl(790,150,'origin',{size:24,bold:true,display:true})}
+  ${lbl(790,185,'GitHub / GitLab / etc',{size:16})}
+  <path d="M370,140 C450,110 550,110 630,140" stroke="var(--ink-blue)" stroke-width="2.5" marker-end="url(#arrow)" fill="none" style="color:var(--ink-blue)"/>
+  ${lbl(500,100,'git push',{size:19,bold:true,color:'var(--ink-blue)'})}
+  <path d="M630,190 C550,220 450,220 370,190" stroke="var(--ink-red)" stroke-width="2.5" marker-end="url(#arrow)" fill="none" style="color:var(--ink-red)"/>
+  ${lbl(500,250,'git fetch / pull',{size:19,bold:true,color:'var(--ink-red)'})}
+</svg>`;
+
+D.fetchPull = `<svg viewBox="0 0 1000 340" xmlns="http://www.w3.org/2000/svg">${ARROW_DEFS}
+  ${lbl(230,30,'git fetch',{size:24,bold:true,color:'var(--ink-blue)',display:true})}
+  ${box(60,60,300,80,'var(--hi-green)','var(--ink)',0)}${lbl(210,105,'origin/main',{size:18})}
+  ${box(60,180,300,80,'var(--hi-blue)','var(--ink)',0)}${lbl(210,225,'your main',{size:18})}
+  ${straight(210,140,210,180,'var(--ink-blue)',true)}
+  ${lbl(400,180,'updates the bookmark only — your main stays put',{size:15,color:'var(--pencil)',anchor:'start'})}
+  ${lbl(770,30,'git pull',{size:24,bold:true,color:'var(--ink-red)',display:true})}
+  ${box(640,60,300,80,'var(--hi-green)','var(--ink)',0)}${lbl(790,105,'origin/main',{size:18})}
+  ${box(640,180,300,80,'var(--hi-pink)','var(--ink)',0)}${lbl(790,225,'your main (merged)',{size:16})}
+  ${straight(790,140,790,180,'var(--ink-red)')}
+  ${lbl(720,300,'= fetch + merge, in one step',{size:16,color:'var(--pencil)',anchor:'start'})}
+</svg>`;
+
+D.collabWorkflow = `<svg viewBox="0 0 1000 340" xmlns="http://www.w3.org/2000/svg">${ARROW_DEFS}
+  ${box(30,140,190,90,'var(--hi-blue)','var(--ink)',-1)}${lbl(125,178,'checkout',{size:17,bold:true})}${lbl(125,205,'-b feature',{size:15})}
+  ${box(255,140,190,90,'var(--hi-yellow)','var(--ink)',1)}${lbl(350,178,'commit',{size:17,bold:true})}${lbl(350,205,'small & often',{size:14})}
+  ${box(480,140,190,90,'var(--hi-green)','var(--ink)',-1)}${lbl(575,178,'push',{size:17,bold:true})}${lbl(575,205,'to origin',{size:14})}
+  ${box(705,60,220,90,'var(--hi-pink)','var(--ink-red)',1)}${lbl(815,98,'open a PR',{size:17,bold:true})}${lbl(815,125,'teammates review',{size:14})}
+  ${box(705,220,220,90,'var(--hi-green)','var(--ink-blue)',-1)}${lbl(815,258,'merge',{size:17,bold:true})}${lbl(815,285,'into main',{size:14})}
+  ${straight(220,185,255,185,'var(--ink)')}
+  ${straight(445,185,480,185,'var(--ink)')}
+  <path d="M670,185 C700,150 700,130 705,110" stroke="var(--ink)" stroke-width="2.5" marker-end="url(#arrow)" fill="none"/>
+  <path d="M815,150 C815,180 815,190 815,220" stroke="var(--ink)" stroke-width="2.5" marker-end="url(#arrow)" fill="none"/>
+  <path d="M705,260 C500,320 200,300 125,230" stroke="var(--pencil)" stroke-width="2" stroke-dasharray="5,6" marker-end="url(#arrow)" fill="none" style="color:var(--pencil)"/>
+  ${lbl(400,325,'delete branch, start the next one',{size:15,color:'var(--pencil)'})}
+</svg>`;
+
+/* small module icons */
+const ICON = {
+  book:`<svg viewBox="0 0 100 100"><path d="M15,20 Q50,5 85,20 L85,85 Q50,70 15,85 Z" fill="var(--hi-yellow)" stroke="var(--ink)" stroke-width="3"/><line x1="50" y1="12" x2="50" y2="78" stroke="var(--ink)" stroke-width="2"/></svg>`,
+  wrench:`<svg viewBox="0 0 100 100"><circle cx="30" cy="30" r="18" fill="none" stroke="var(--ink)" stroke-width="6"/><rect x="45" y="45" width="45" height="16" rx="6" transform="rotate(45 60 55)" fill="var(--hi-blue)" stroke="var(--ink)" stroke-width="3"/></svg>`,
+  eraser:`<svg viewBox="0 0 100 100"><rect x="15" y="35" width="70" height="34" rx="8" fill="var(--hi-pink)" stroke="var(--ink-red)" stroke-width="4" transform="rotate(-8 50 50)"/></svg>`,
+  branch:`<svg viewBox="0 0 100 100"><circle cx="25" cy="80" r="8" fill="var(--hi-blue)" stroke="var(--ink)" stroke-width="3"/><circle cx="25" cy="30" r="8" fill="var(--hi-green)" stroke="var(--ink)" stroke-width="3"/><circle cx="75" cy="55" r="8" fill="var(--hi-yellow)" stroke="var(--ink)" stroke-width="3"/><path d="M25,72 L25,38" stroke="var(--ink)" stroke-width="3" fill="none"/><path d="M25,45 C25,55 60,50 70,55" stroke="var(--ink)" stroke-width="3" fill="none"/></svg>`,
+  cloud:`<svg viewBox="0 0 100 100"><path d="M25,65 a15,15 0 010,-30 a20,20 0 0138,-8 a17,17 0 0112,30 z" fill="var(--hi-green)" stroke="var(--ink)" stroke-width="3.5"/></svg>`,
+  check:`<svg viewBox="0 0 100 100"><path d="M20,55 L42,75 L82,25" fill="none" stroke="var(--ink-green)" stroke-width="9" stroke-linecap="round"/></svg>`
+};
+
+/* underline scribble for titles */
+const SCRIB = `<svg class="underline-scribble" viewBox="0 0 210 16"><path d="M3,10 Q50,2 100,9 T207,7" fill="none" stroke="var(--ink-red)" stroke-width="4" stroke-linecap="round"/></svg>`;
+
+/* ============================= SLIDE DATA ============================= */
+const slides = [];
+function add(s){ slides.push(s); }
+
+/* ---- 1 ---- */
+add({type:'title', kicker:'A Short, Handwritten Course', title:'Git, Actually.',
+  subtitle:'40 pages of notes on the version control tool everyone pretends to already understand.',
+  footer:'Grab a pen — we\'re taking this one slide at a time.'});
+
+/* ---- 2 ---- */
+add({type:'toc', title:'What we\'ll cover', cols:[
+  ['Module 1 — Foundations','What is version control?','What is Git, really?','Git vs. GitHub','Install & first-time setup'],
+  ['Module 2 — Core Workflow','The Three Trees','init · status · add · commit','Anatomy of a commit','log, graphs & .gitignore'],
+  ['Module 3 — Undoing Things','diff, checkout & restore','Unstaging a file','reset: soft/mixed/hard','Amending commits'],
+  ['Module 4 — Branch & Merge','What is a branch?','Merge: fast-forward vs 3-way','Conflicts & rebase','Stash & tags'],
+  ['Module 5 — Remotes','origin, push & pull','fetch vs pull','Team workflow (PRs)','Revert, cherry-pick & cheat sheet']
+]});
+
+/* ---- 3 divider ---- */
+add({type:'divider', num:'01', title:'Foundations', tag:'Before the commands — the mental model', icon:ICON.book});
+
+/* ---- 4 ---- */
+add({type:'diagram', kicker:'Module 1', title:'What Is Version Control?',
+  intro:'It\'s a system that records changes to files over time, so you can recall any version later — no more "final_v2_REAL" files.',
+  svg:D.vcsChaos,
+  take:'Git doesn\'t just back up files — it remembers <span class="hi hi-y">every version</span> of them, forever, on purpose.'});
+
+/* ---- 5 ---- */
+add({type:'content', kicker:'Module 1', title:'What Is Git, Really?',
+  items:[
+    {h:'Distributed', d:'Every clone is a full copy of the history — not just a pointer to a server.'},
+    {h:'Snapshot-based', d:'Each commit stores the whole project state, not a list of edits.'},
+    {h:'Fast & local', d:'Almost everything (commit, diff, log, branch) happens on your machine.'},
+    {h:'Free & open source', d:'Created by Linus Torvalds in 2005 to maintain the Linux kernel.'}
+  ],
+  take:'Git is the tool. It runs on your computer whether or not you ever touch the internet.'});
+
+/* ---- 6 ---- */
+add({type:'compare', kicker:'Module 1', title:'Git vs. GitHub',
+  left:{h:'Git', sub:'the tool', pts:['Version control software','Runs on your machine','Tracks history & branches','Works with zero internet']},
+  right:{h:'GitHub', sub:'a hosting service', pts:['A website that stores Git repos','One of many (GitLab, Bitbucket…)','Adds Pull Requests, Issues, CI','Needs an account + internet']},
+  verdict:'You could use Git your whole career without ever opening GitHub. They are not the same thing.'});
+
+/* ---- 7 ---- */
+add({type:'commands', kicker:'Module 1', title:'Install & First-Time Setup',
+  intro:'Two steps before you ever type git init.',
+  rows:[
+    {cmd:'brew install git', d:'macOS (Homebrew)'},
+    {cmd:'sudo apt install git', d:'Debian / Ubuntu'},
+    {cmd:'winget install Git.Git', d:'Windows'},
+    {cmd:'git config --global user.name "Ada"', d:'attach your name to every commit'},
+    {cmd:'git config --global user.email "ada@example.com"', d:'and your email'}
+  ],
+  tip:'This only needs to happen once per computer — Git remembers it globally.'});
+
+/* ---- 8 divider ---- */
+add({type:'divider', num:'02', title:'The Core Workflow', tag:'init → status → add → commit', icon:ICON.wrench});
+
+/* ---- 9 ---- */
+add({type:'diagram', kicker:'Module 2', title:'The Three Trees',
+  intro:'Every file in a Git project lives in one of three places. Learning to see these three areas is 80% of understanding Git.',
+  svg:D.threeTrees,
+  take:'"Committing" is really just <span class="hi hi-b">moving a snapshot</span> from staging into permanent history.'});
+
+/* ---- 10 ---- */
+add({type:'commands', kicker:'Module 2', title:'git init — Start a Repository',
+  intro:'Turns any folder into a Git repository by creating a hidden .git directory.',
+  rows:[
+    {cmd:'git init', d:'creates .git/ in the current folder'},
+    {cmd:'git init my-project', d:'creates a new folder and initializes it'},
+    {cmd:'git clone <url>', d:'copies an existing remote repo instead'}
+  ],
+  tip:'The .git folder IS the repository. Delete it, and the history is gone — the files remain, the memory doesn\'t.'});
+
+/* ---- 11 ---- */
+add({type:'commands', kicker:'Module 2', title:'git status — Where Am I?',
+  intro:'The command you\'ll run more than any other. It never changes anything — just reports.',
+  rows:[
+    {cmd:'git status', d:'shows staged, unstaged & untracked files'},
+    {cmd:'git status -s', d:'the same thing, compressed to one line per file'}
+  ],
+  tip:'When in doubt about what Git will do next — run git status first. Always safe.'});
+
+/* ---- 12 ---- */
+add({type:'commands', kicker:'Module 2', title:'git add — Stage Your Changes',
+  intro:'Moves changes from the Working Directory into the Staging Area, marking them "ready to commit."',
+  rows:[
+    {cmd:'git add index.html', d:'stage one specific file'},
+    {cmd:'git add src/', d:'stage an entire folder'},
+    {cmd:'git add .', d:'stage everything in this directory'},
+    {cmd:'git add -p', d:'stage changes hunk-by-hunk, interactively'}
+  ],
+  tip:'Staging lets you build a commit out of only part of your changes — very deliberate, very Git.'});
+
+/* ---- 13 ---- */
+add({type:'commands', kicker:'Module 2', title:'git commit — Save a Snapshot',
+  intro:'Takes everything in the Staging Area and permanently records it in the project history.',
+  rows:[
+    {cmd:'git commit -m "add login form"', d:'commit with an inline message'},
+    {cmd:'git commit', d:'opens your editor for a longer message'},
+    {cmd:'git commit -am "quick fix"', d:'stage all tracked changes + commit in one'}
+  ],
+  tip:'Good commit messages describe WHY, not just what — future you will say thanks.'});
+
+/* ---- 14 ---- */
+add({type:'diagram', kicker:'Module 2', title:'Anatomy of a Commit',
+  intro:'A commit is not a diff — it\'s a full snapshot, plus metadata, plus a pointer to its parent.',
+  svg:D.commitAnatomy,
+  take:'Because every commit points to its parent, the whole history forms a <span class="hi hi-g">chain you can walk backward</span> through.'});
+
+/* ---- 15 ---- */
+add({type:'diagram', kicker:'Module 2', title:'git log & Visualizing History',
+  intro:'git log lets you walk that chain of commits. Add --graph to actually see the branching shape.',
+  svg:D.logGraph,
+  take:'<span class="hi hi-y">git log --oneline --graph --all</span> is the single most useful history command you\'ll learn.'});
+
+/* ---- 16 ---- */
+add({type:'commands', kicker:'Module 2', title:'.gitignore — What NOT to Track',
+  intro:'A plain text file listing patterns Git should never stage, ever — no matter how many times you git add .',
+  rows:[
+    {cmd:'node_modules/', d:'ignore a whole dependency folder'},
+    {cmd:'*.log', d:'ignore every file ending in .log'},
+    {cmd:'.env', d:'never commit secrets or API keys'},
+    {cmd:'.DS_Store', d:'ignore OS-generated junk files'}
+  ],
+  tip:'Add .gitignore on day one — untracking a huge folder later is a much bigger headache.'});
+
+/* ---- 17 divider ---- */
+add({type:'divider', num:'03', title:'Undoing Things', tag:'Everyone makes mistakes — Git expects it', icon:ICON.eraser});
+
+/* ---- 18 ---- */
+add({type:'commands', kicker:'Module 3', title:'git diff — See What Changed',
+  intro:'Shows the exact line-by-line difference before you commit anything.',
+  rows:[
+    {cmd:'git diff', d:'unstaged changes vs. the last commit'},
+    {cmd:'git diff --staged', d:'staged changes vs. the last commit'},
+    {cmd:'git diff main feature', d:'compare two branches'},
+    {cmd:'git diff HEAD~2', d:'compare against 2 commits ago'}
+  ],
+  tip:'Lines starting with - are being removed, + are being added. Always read your diff before committing.'});
+
+/* ---- 19 ---- */
+add({type:'commands', kicker:'Module 3', title:'Undo Unstaged Changes',
+  intro:'Throw away edits in the working directory that haven\'t been staged yet.',
+  rows:[
+    {cmd:'git restore file.js', d:'discard changes to one file (modern)'},
+    {cmd:'git checkout -- file.js', d:'the older, equivalent syntax'},
+    {cmd:'git restore .', d:'discard ALL unstaged changes'}
+  ],
+  tip:'This is destructive and has no undo — make sure you really want to lose those edits.'});
+
+/* ---- 20 ---- */
+add({type:'commands', kicker:'Module 3', title:'Unstage a File',
+  intro:'You git add\'d something by accident — put it back in the working directory without losing it.',
+  rows:[
+    {cmd:'git restore --staged file.js', d:'modern syntax'},
+    {cmd:'git reset file.js', d:'classic syntax, same result'}
+  ],
+  tip:'Unstaging never deletes your edits — it just moves the file back one tree, to Working Directory.'});
+
+/* ---- 21 ---- */
+add({type:'diagram', kicker:'Module 3', title:'git reset — soft, mixed & hard',
+  intro:'reset moves HEAD (and your branch) to a different commit. The flag controls how far the damage reaches.',
+  svg:D.resetModes,
+  take:'<span class="hi hi-p">--hard</span> deletes uncommitted work permanently. Everything else is safely reversible.'});
+
+/* ---- 22 ---- */
+add({type:'commands', kicker:'Module 3', title:'Amending the Last Commit',
+  intro:'Forgot a file, or typo\'d the message? Fix the most recent commit instead of making a new one.',
+  rows:[
+    {cmd:'git commit --amend -m "new message"', d:'rewrite the last message'},
+    {cmd:'git add forgotten.js && git commit --amend --no-edit', d:'add a file, keep the same message'}
+  ],
+  tip:'Never amend a commit you\'ve already pushed and shared — it rewrites history other people rely on.'});
+
+/* ---- 23 divider ---- */
+add({type:'divider', num:'04', title:'Branching & Merging', tag:'Parallel timelines, on purpose', icon:ICON.branch});
+
+/* ---- 24 ---- */
+add({type:'diagram', kicker:'Module 4', title:'What\'s a Branch, Really?',
+  intro:'A branch is not a copy of your project. It\'s just a lightweight, movable label pointing at one commit.',
+  svg:D.branchPointer,
+  take:'That\'s why creating a branch in Git is <span class="hi hi-b">instant</span> — no matter how big the repo is.'});
+
+/* ---- 25 ---- */
+add({type:'commands', kicker:'Module 4', title:'Creating & Switching Branches',
+  intro:'Isolate risky or in-progress work from the stable main line.',
+  rows:[
+    {cmd:'git branch feature/login', d:'create a new branch (doesn\'t switch to it)'},
+    {cmd:'git switch feature/login', d:'move HEAD to that branch (modern)'},
+    {cmd:'git switch -c feature/login', d:'create AND switch in one step'},
+    {cmd:'git branch -d feature/login', d:'delete a branch once merged'}
+  ],
+  tip:'git checkout <branch> still works too — switch/restore are newer, clearer replacements.'});
+
+/* ---- 26 ---- */
+add({type:'diagram', kicker:'Module 4', title:'Visualizing a Branch Tree',
+  intro:'When a branch diverges, the commit graph literally forks into two lines that can grow independently.',
+  svg:D.branchTree,
+  take:'Nothing on <span class="hi hi-g">feature/login</span> affects main until you explicitly merge it back.'});
+
+/* ---- 27 ---- */
+add({type:'diagram', kicker:'Module 4', title:'Merging: Fast-Forward vs. 3-Way',
+  intro:'git merge combines two branches — but the shape of the result depends on whether they diverged.',
+  svg:D.mergeFF,
+  take:'Fast-forward just moves a pointer. A 3-way merge creates a brand-new commit with two parents.'});
+
+/* ---- 28 ---- */
+add({type:'content', kicker:'Module 4', title:'Merge Conflicts',
+  items:[
+    {h:'Why they happen', d:'Both branches edited the same lines — Git can\'t guess which version you want.'},
+    {h:'What you\'ll see', d:'Markers like <<<<<<<, =======, and >>>>>>> inserted right into the file.'},
+    {h:'How to resolve', d:'Edit the file to the version you want, delete the markers, then git add + git commit.'},
+    {h:'Escape hatch', d:'git merge --abort backs out entirely if it\'s too messy.'}
+  ],
+  take:'A conflict isn\'t an error — it\'s Git asking a question it can\'t answer for you.'});
+
+/* ---- 29 ---- */
+add({type:'diagram', kicker:'Module 4', title:'Rebasing',
+  intro:'Instead of merging, rebase replays your branch\'s commits on top of the latest main — rewriting their history.',
+  svg:D.rebase,
+  take:'Result: a <span class="hi hi-g">clean, linear history</span>, as if you\'d branched off right now.'});
+
+/* ---- 30 ---- */
+add({type:'compare', kicker:'Module 4', title:'Merge vs. Rebase — Choosing',
+  left:{h:'git merge', sub:'preserves history', pts:['Non-destructive, no rewriting','Shows exactly what happened','Can get messy with lots of merges','Safe on shared/public branches']},
+  right:{h:'git rebase', sub:'rewrites history', pts:['Produces a clean, linear log','Great for tidying local work','Changes commit hashes','Never rebase shared/public branches']},
+  verdict:'Golden rule: rebase what\'s only yours, merge what\'s shared with others.'});
+
+/* ---- 31 ---- */
+add({type:'commands', kicker:'Module 4', title:'Stashing Work in Progress',
+  intro:'Need to switch branches but you\'re mid-change? Shelve it temporarily without committing.',
+  rows:[
+    {cmd:'git stash', d:'save uncommitted changes, clean the working dir'},
+    {cmd:'git stash list', d:'see everything you\'ve stashed'},
+    {cmd:'git stash pop', d:'reapply the most recent stash & remove it'},
+    {cmd:'git stash apply', d:'reapply without removing, in case you need it again'}
+  ],
+  tip:'Think of stash as a clipboard for your entire working directory.'});
+
+/* ---- 32 ---- */
+add({type:'commands', kicker:'Module 4', title:'Tagging Releases',
+  intro:'A tag marks a specific commit permanently — most often used for version numbers.',
+  rows:[
+    {cmd:'git tag v1.0.0', d:'lightweight tag on the current commit'},
+    {cmd:'git tag -a v1.0.0 -m "first release"', d:'annotated tag, with message & author'},
+    {cmd:'git push origin v1.0.0', d:'tags don\'t push automatically — send it up'}
+  ],
+  tip:'Unlike a branch, a tag never moves once created — it\'s a permanent bookmark.'});
+
+/* ---- 33 divider ---- */
+add({type:'divider', num:'05', title:'Working with Remotes', tag:'Now bring other people in', icon:ICON.cloud});
+
+/* ---- 34 ---- */
+add({type:'diagram', kicker:'Module 5', title:'Remote Repositories',
+  intro:'A remote is just another copy of the repo — usually hosted online — that you sync with.',
+  svg:D.remoteConcept,
+  take:'"origin" is only a nickname — by convention it\'s the remote you cloned from.'});
+
+/* ---- 35 ---- */
+add({type:'commands', kicker:'Module 5', title:'Cloning & Adding Remotes',
+  intro:'Two ways a local repo gets connected to a remote one.',
+  rows:[
+    {cmd:'git clone https://github.com/x/repo.git', d:'copy a remote repo, with "origin" preset'},
+    {cmd:'git remote add origin <url>', d:'connect an existing local repo to a remote'},
+    {cmd:'git remote -v', d:'list configured remotes and their URLs'}
+  ],
+  tip:'You can have more than one remote — e.g. "origin" and "upstream" for a forked project.'});
+
+/* ---- 36 ---- */
+add({type:'commands', kicker:'Module 5', title:'Pushing Changes',
+  intro:'Uploads your local commits to the remote so others can see them.',
+  rows:[
+    {cmd:'git push origin main', d:'push the main branch to origin'},
+    {cmd:'git push -u origin main', d:'push AND remember this pairing (-u)'},
+    {cmd:'git push', d:'once tracked, this is all you need'}
+  ],
+  tip:'Git will refuse a push if the remote has commits you don\'t — pull first, then push.'});
+
+/* ---- 37 ---- */
+add({type:'diagram', kicker:'Module 5', title:'git fetch vs. git pull',
+  intro:'Both check the remote for new commits — they differ in what happens next.',
+  svg:D.fetchPull,
+  take:'Prefer fetch when you want to <span class="hi hi-b">look before you merge</span>.'});
+
+/* ---- 38 ---- */
+add({type:'diagram', kicker:'Module 5', title:'A Real Collaboration Workflow',
+  intro:'Most teams repeat this loop for every feature, big or small.',
+  svg:D.collabWorkflow,
+  take:'Small, frequent commits + a Pull Request = code that\'s easy for teammates to review.'});
+
+/* ---- 39 ---- */
+add({type:'content', kicker:'Module 5', title:'Revert, Reset & Cherry-Pick',
+  items:[
+    {h:'git revert <hash>', d:'creates a NEW commit that undoes an old one — safe on shared history.'},
+    {h:'git reset <hash>', d:'moves HEAD backward, rewriting history — only for local/unshared commits.'},
+    {h:'git cherry-pick <hash>', d:'copies one specific commit from another branch onto yours.'},
+    {h:'Rule of thumb', d:'If it\'s already pushed and shared, revert. If it\'s only yours, reset is fine.'}
+  ],
+  take:'Undo tools that rewrite history are powerful — and only safe before you\'ve shared that history.'});
+
+/* ---- 40 ---- */
+add({type:'end', title:'You Now Know Git.', icon:ICON.check,
+  recap:['The Three Trees: working → staging → repo','add + commit = your daily rhythm','Branches are just movable pointers','merge preserves, rebase rewrites','push/pull keep you in sync with others'],
+  cheat:[['git status','what\'s going on'],['git add .','stage everything'],['git commit -m ""','save a snapshot'],['git switch -c x','new branch'],['git merge x','bring it in'],['git pull','get latest'],['git push','share yours'],['git log --oneline --graph','see it all']],
+  sign:'Now go commit something. — end of notes'});
+
+/* ============================= TEMPLATES ============================= */
+function chip(text,color){ return `<span class="sticky" style="background:${color||'var(--sticky-orange)'}">${text}</span>`; }
+
+const T = {};
+
+T.title = s => `
+  <div class="title-wrap">
+    <div class="title-kicker">${s.kicker}</div>
+    <h1 class="slide-title title-big">${s.title}</h1>
+    ${SCRIB}
+    <p class="subtitle title-sub">${s.subtitle}</p>
+    <div class="title-foot">${chip(s.footer)}</div>
+  </div>`;
+
+T.toc = s => `
+  <h1 class="slide-title">${s.title}</h1>${SCRIB}
+  <div class="toc-grid">
+    ${s.cols.map((c,i)=>`
+      <div class="toc-col" style="background:${['var(--hi-blue)','var(--hi-yellow)','var(--hi-green)','var(--hi-pink)','var(--paper-2)'][i%5]};transform:rotate(${(i%2?1:-1)*0.6}deg);">
+        <div class="toc-head">${c[0]}</div>
+        ${c.slice(1).map(t=>`<div class="toc-item">· ${t}</div>`).join('')}
+      </div>`).join('')}
+  </div>`;
+
+T.divider = s => `
+  <div class="divider-wrap">
+    <div class="divider-icon">${s.icon}</div>
+    <div>
+      <div class="divider-mod">Module ${s.num}</div>
+      <h1 class="slide-title" style="font-size:64px;">${s.title}</h1>${SCRIB}
+      <p class="subtitle" style="font-size:26px;">${s.tag}</p>
+    </div>
+  </div>`;
+
+T.content = s => `
+  <div class="kicker">${s.kicker}</div>
+  <h1 class="slide-title">${s.title}</h1>${SCRIB}
+  <div class="grid-2">
+    ${s.items.map((it,i)=>`
+      <div class="item-block" style="background:${i%2?'var(--paper-2)':'transparent'};">
+        <div class="item-h">${it.h}</div>
+        <div class="item-d">${it.d}</div>
+      </div>`).join('')}
+  </div>
+  ${s.take?`<div class="tip-wrap">${chip(s.take,'var(--hi-yellow)')}</div>`:''}`;
+
+T.diagram = s => `
+  <div class="kicker">${s.kicker}</div>
+  <h1 class="slide-title diagram-title">${s.title}</h1>${SCRIB}
+  <p class="diagram-intro">${s.intro}</p>
+  <div class="diagram-svg-wrap">${s.svg}</div>
+  ${s.take?`<div class="diagram-take">${chip(s.take,'var(--hi-green)')}</div>`:''}`;
+
+T.compare = s => `
+  <div class="kicker">${s.kicker}</div>
+  <h1 class="slide-title">${s.title}</h1>${SCRIB}
+  <div class="compare-grid">
+    <div class="compare-col l">
+      <div class="compare-h l">${s.left.h}</div>
+      <div class="compare-sub">${s.left.sub}</div>
+      ${s.left.pts.map(p=>`<div class="compare-pt">✓ ${p}</div>`).join('')}
+    </div>
+    <div class="compare-col r">
+      <div class="compare-h r">${s.right.h}</div>
+      <div class="compare-sub">${s.right.sub}</div>
+      ${s.right.pts.map(p=>`<div class="compare-pt">✓ ${p}</div>`).join('')}
+    </div>
+  </div>
+  ${s.verdict?`<div class="verdict-wrap">${chip(s.verdict)}</div>`:''}`;
+
+T.commands = s => `
+  <div class="kicker">${s.kicker}</div>
+  <h1 class="slide-title">${s.title}</h1>${SCRIB}
+  <p class="cmd-intro">${s.intro}</p>
+  <div class="cmd-box">
+    ${s.rows.map(r=>`
+      <div class="cmd-row">
+        <code class="cmd-code">${r.cmd}</code>
+        <span class="cmd-desc">— ${r.d}</span>
+      </div>`).join('')}
+  </div>
+  ${s.tip?`<div class="tip-wrap">${chip(s.tip)}</div>`:''}`;
+
+T.end = s => `
+  <div class="end-wrap">
+    <div class="end-col">
+      <h1 class="slide-title" style="font-size:56px;">${s.title}</h1>${SCRIB}
+      <div style="margin-top:20px;">
+        ${s.recap.map(r=>`<div class="recap-item">✎ ${r}</div>`).join('')}
+      </div>
+      <div style="margin-top:26px;">${chip(s.sign,'var(--hi-green)')}</div>
+    </div>
+    <div class="end-col">
+      <div class="cheat-head">Cheat Sheet</div>
+      <div class="cmd-box">
+        ${s.cheat.map(c=>`<div class="cheat-row">
+          <code class="cheat-code">${c[0]}</code>
+          <span class="cheat-desc">${c[1]}</span></div>`).join('')}
+      </div>
+    </div>
+    <div class="end-icon">${s.icon}</div>
+  </div>`;
+
+/* ============================= ENGINE ============================= */
+const stage = document.getElementById('stage');
+let idx = 0;
+let isMobile = false;
+
+function renderSlide(i){
+  const s = slides[i];
+  const wrap = document.createElement('div');
+  wrap.className = 'slide active';
+  const noChromeTop = s.type==='title'||s.type==='toc'||s.type==='divider'||s.type==='end';
+  const top = noChromeTop ? '' : `<div class="chrome-top"><span class="eyebrow">${s.kicker||''}</span></div>`;
+  const areaStyle = (noChromeTop && !isMobile) ? ' style="top:34px;"' : '';
+  wrap.innerHTML = top + `<div class="content-area"${areaStyle}>${T[s.type](s)}</div>`;
+  stage.innerHTML = '';
+  stage.appendChild(wrap);
+  const dots = document.createElement('div');
+  dots.className='chrome-bottom';
+  dots.innerHTML = `<span>Page ${i+1} / ${slides.length}</span>
+    <div class="progress-track"><div class="progress-fill" style="width:${((i+1)/slides.length*100).toFixed(1)}%"></div></div>
+    <span>${moduleName(i)}</span>`;
+  stage.appendChild(dots);
+  if(isMobile) stage.scrollTop = 0;
+  const sw = document.getElementById('stage-wrap');
+  if(isMobile && sw) sw.scrollTop = 0;
+}
+function moduleName(i){
+  const s=slides[i];
+  if(s.kicker) return s.kicker;
+  if(s.type==='divider') return 'Module '+s.num;
+  if(s.type==='title') return 'Start';
+  if(s.type==='toc') return 'Roadmap';
+  if(s.type==='end') return 'Fin.';
+  return '';
+}
+function go(n){
+  idx = Math.max(0, Math.min(slides.length-1, n));
+  renderSlide(idx);
+}
+document.getElementById('nextBtn').addEventListener('click', ()=>go(idx+1));
+document.getElementById('prevBtn').addEventListener('click', ()=>go(idx-1));
+document.getElementById('clickLeft').addEventListener('click', ()=>go(idx-1));
+document.getElementById('clickRight').addEventListener('click', ()=>go(idx+1));
+window.addEventListener('keydown', e=>{
+  if(['ArrowRight','ArrowDown','PageDown',' '].includes(e.key)){ go(idx+1); e.preventDefault(); }
+  if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){ go(idx-1); e.preventDefault(); }
+  if(e.key==='Home') go(0);
+  if(e.key==='End') go(slides.length-1);
+  if(e.key==='f'){ document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); }
+});
+/* touch swipe (horizontal swipe still switches slides even while a slide scrolls vertically) */
+let touchX=null, touchY=null;
+window.addEventListener('touchstart', e=>{ touchX=e.touches[0].clientX; touchY=e.touches[0].clientY; });
+window.addEventListener('touchend', e=>{
+  if(touchX===null) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  const dy = e.changedTouches[0].clientY - touchY;
+  if(Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 60){
+    if(dx>0) go(idx-1); else go(idx+1);
+  }
+  touchX=null; touchY=null;
+});
+/* responsive: switch between "scale a fixed canvas" (desktop) and
+   "reflow + scroll" (mobile) rather than shrinking everything to fit */
+const mq = window.matchMedia('(max-width:700px)');
+function applyMode(){
+  isMobile = mq.matches;
+  document.body.classList.toggle('mobile-mode', isMobile);
+  if(isMobile){
+    stage.style.transform = 'none';
+  } else {
+    scaleStage();
+  }
+}
+function scaleStage(){
+  if(isMobile) return;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const scale = Math.min(vw/1280, vh/720) * 0.94;
+  stage.style.transform = `scale(${scale})`;
+}
+window.addEventListener('resize', ()=>{ applyMode(); });
+mq.addEventListener ? mq.addEventListener('change', applyMode) : mq.addListener(applyMode);
+applyMode();
+renderSlide(0);
+</script>
+</body>
+</html>
